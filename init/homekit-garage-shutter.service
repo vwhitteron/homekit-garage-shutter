@@ -1,0 +1,15 @@
+[Unit]
+Description=HomeKit Garage Shutter
+After=network.target
+Wants=network.target
+
+[Service]
+ExecStart=/opt/homekit-garage-shutter/homekit-garage-shutter
+Type=simple
+Restart=always
+
+[Install]
+WantedBy=network.target
+
+[Socket]
+ListenDatagram=0.0.0.0:40111

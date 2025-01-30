@@ -13,6 +13,8 @@ import (
 	"periph.io/x/host/v3"
 )
 
+const LockOnClose = true
+
 func main() {
 	// signal handler
 	sigs := make(chan os.Signal, 1)
@@ -47,7 +49,10 @@ func main() {
 		SerialNumber: "0002197",
 	}
 
-	acc := NewGarageDoorOpener(info)
+	lock := NewGarageDoorLock(info)
+	lockSwitch := NewGarageDoorLockSwitch(info)
+	shutter := NewGarageDoorOpener(info)
+	openSensor := NewGarageDoorOpenSensor(info)
 
 	// configure the ip transport
 	config := hc.Config{
@@ -55,7 +60,7 @@ func main() {
 		Pin:         "00002197",
 		StoragePath: "/opt/homekit-garage-shutter/data",
 	}
-	t, err := hc.NewIPTransport(config, acc.Accessory)
+	t, err := hc.NewIPTransport(config, shutter.Accessory, lock.Accessory, lockSwitch.Accessory, openSensor.Accessory)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -64,95 +69,187 @@ func main() {
 		<-t.Stop()
 	})
 
-	hat.leds.WakeUp()
-	hat.leds.Switch((LedComm), true)
-
-	acc.GarageDoorOpener.TargetDoorState.OnValueRemoteUpdate(func(state int) {
+	lock.LockMechanism.LockTargetState.OnValueRemoteUpdate(func(state int) {
 		switch state {
-		case characteristic.TargetDoorStateOpen:
-			relay := hat.GetRelay1()
+		case characteristic.LockTargetStateUnsecured:
+			log.Println("Homekit LockMechanism request: signal=unlock")
 
-			log.Println("Door controller: signal=open")
+			log.Println("Homekit LockMechanism update: target=unsecured current=unsecured")
+			lock.LockTargetState.UpdateValue(characteristic.LockTargetStateUnsecured)
+			lock.LockCurrentState.UpdateValue(characteristic.LockCurrentStateUnsecured)
 
-			relay.Out(true)
-			hat.leds.Switch(LedRelay1NC, true)
-			time.Sleep(500 * time.Millisecond)
-			relay.Out(false)
-			hat.leds.Switch(LedRelay1NC, false)
+			log.Println("Homekit Switch update: value=off")
+			lockSwitch.On.UpdateValue(false)
+		case characteristic.LockTargetStateSecured:
+			log.Println("Homekit LockMechanism request: signal=lock")
 
-			acc.TargetDoorState.UpdateValue(characteristic.TargetDoorStateOpen)
-			acc.CurrentDoorState.UpdateValue(characteristic.CurrentDoorStateOpening)
-			acc.delayUpdate = time.Now().Add(5 * time.Second)
-		case characteristic.TargetDoorStateClosed:
+			log.Println("Homekit LockMechanism update: target=secured current=secured")
+			lock.LockTargetState.UpdateValue(characteristic.LockTargetStateSecured)
+			lock.LockCurrentState.UpdateValue(characteristic.LockCurrentStateSecured)
+
+			log.Println("Homekit Switch update: value=on")
+			lockSwitch.On.UpdateValue(true)
+
+			log.Println("Shutter remote: signal=close")
 			relay := hat.GetRelay3()
-
-			log.Println("Door controller: signal=close")
-
 			relay.Out(true)
-			hat.leds.Switch(LedRelay3NC, true)
 			time.Sleep(500 * time.Millisecond)
 			relay.Out(false)
-			hat.leds.Switch(LedRelay3NC, false)
-
-			acc.TargetDoorState.UpdateValue(characteristic.TargetDoorStateClosed)
-			acc.CurrentDoorState.UpdateValue(characteristic.CurrentDoorStateClosing)
-			acc.delayUpdate = time.Now().Add(5 * time.Second)
-		default:
-			log.Printf("Door controller: signal=nil [unexpected state %d]\n", state)
 		}
 	})
 
-	go pollDoorState(acc, hat)
+	lockSwitch.On.OnValueRemoteUpdate(func(state bool) {
+		switch state {
+		case false:
+			log.Println("Homekit LockMechanism request: signal=unlock")
+
+			log.Println("Homekit LockMechanism update: target=unsecured current=unsecured")
+			lock.LockTargetState.UpdateValue(characteristic.LockTargetStateUnsecured)
+			lock.LockCurrentState.UpdateValue(characteristic.LockCurrentStateUnsecured)
+
+			log.Println("Homekit Switch update: value=off")
+			lockSwitch.On.UpdateValue(false)
+		case true:
+			log.Println("Homekit LockMechanism request: signal=lock")
+
+			log.Println("Homekit LockMechanism update: target=secured current=secured")
+			lock.LockTargetState.UpdateValue(characteristic.LockTargetStateSecured)
+			lock.LockCurrentState.UpdateValue(characteristic.LockCurrentStateSecured)
+
+			log.Println("Homekit Switch update: value=on")
+			lockSwitch.On.UpdateValue(true)
+		}
+	})
+
+	shutter.GarageDoorOpener.TargetDoorState.OnValueRemoteUpdate(func(state int) {
+		switch state {
+		case characteristic.TargetDoorStateOpen:
+			log.Println("Homekit GarageDoorOpener request: target=open")
+
+			if isUnlocked(lock) {
+				log.Println("Homekit GarageDoorOpener update: target=open current=opening")
+
+				log.Println("Shutter remote: signal=open")
+				relay := hat.GetRelay1()
+				relay.Out(true)
+				time.Sleep(500 * time.Millisecond)
+				relay.Out(false)
+
+				shutter.TargetDoorState.UpdateValue(characteristic.TargetDoorStateOpen)
+				shutter.CurrentDoorState.UpdateValue(characteristic.CurrentDoorStateOpening)
+				shutter.delayUpdate = time.Now().Add(5 * time.Second)
+			} else {
+				log.Println("Homekit GarageDoorOpener request: status=rejected reason=locked")
+
+				shutter.delayUpdate = time.Now().Add(2 * time.Second)
+				time.Sleep(1 * time.Second)
+
+				log.Println("Homekit GarageDoorOpener update: target=closed")
+				shutter.TargetDoorState.UpdateValue(characteristic.TargetDoorStateClosed)
+			}
+		case characteristic.TargetDoorStateClosed:
+			log.Println("Homekit GarageDoorOpener request: target=close")
+
+			log.Println("Shutter remote: signal=close")
+			relay := hat.GetRelay3()
+			relay.Out(true)
+			time.Sleep(500 * time.Millisecond)
+			relay.Out(false)
+
+			log.Println("Homekit GarageDoorOpener update: target=closed current=closing")
+			shutter.TargetDoorState.UpdateValue(characteristic.TargetDoorStateClosed)
+			shutter.CurrentDoorState.UpdateValue(characteristic.CurrentDoorStateClosing)
+			shutter.delayUpdate = time.Now().Add(5 * time.Second)
+		default:
+			log.Printf("Homekit GarageDoorOpener request: signal=nil [unexpected state %d]\n", state)
+		}
+	})
+
+	go pollDoorState(shutter, lock, lockSwitch, openSensor, hat)
 
 	t.Start()
 
 	<-done // Wait
-
-	hat.leds.Switch((LedComm), false)
 }
 
-func pollDoorState(acc *GarageDoorOpener, hat *AutomationHatDev) {
+func pollDoorState(acc *GarageDoorOpener,
+	lock *GarageDoorLock,
+	lockSwitch *GarageDoorLockSwitch,
+	sensor *GarageDoorOpenSensor,
+	hat *AutomationHatDev) {
+
 	for {
 		doorClosedInput := hat.GetInput1()
 		doorOpenInput := hat.GetInput2()
 
+		updateDoorState := true
 		if acc.delayUpdate.After(time.Now()) {
-			continue
+			log.Printf("Poll door state: delay=%d ms", time.Until(acc.delayUpdate).Milliseconds())
+			// time.Sleep(time.Until(acc.delayUpdate))
+			updateDoorState = false
 		}
 
 		if doorClosedInput != nil && doorOpenInput != nil {
 			isClosed := doorClosedInput.Read()
 			isOpen := doorOpenInput.Read()
 
-			hat.leds.Switch(LedInput1, bool(isClosed))
-			hat.leds.Switch(LedInput2, bool(isOpen))
-
-			if !isOpen && isClosed {
-				updateState(acc, hat, characteristic.CurrentDoorStateClosed)
-
-			} else if !isClosed && isOpen {
-				updateState(acc, hat, characteristic.CurrentDoorStateOpen)
-
-			} else if !isClosed && !isOpen {
-				currentDoorState := acc.CurrentDoorState.GetValue()
-				targetDoorState := acc.TargetDoorState.GetValue()
-
-				if currentDoorState != characteristic.CurrentDoorStateOpening && currentDoorState != characteristic.CurrentDoorStateClosing {
-
-					if targetDoorState == characteristic.TargetDoorStateClosed {
-						log.Println("Door state: target=open current=opening")
-						acc.TargetDoorState.UpdateValue(characteristic.TargetDoorStateOpen)
-						acc.CurrentDoorState.UpdateValue(characteristic.CurrentDoorStateOpening)
-					} else {
-						log.Println("Door state: target=closed current=closing")
-						acc.TargetDoorState.UpdateValue(characteristic.TargetDoorStateClosed)
-						acc.CurrentDoorState.UpdateValue(characteristic.CurrentDoorStateClosing)
-					}
+			if !isOpen && isClosed { // shutter closed
+				if sensor.ContactSensorState.GetValue() != characteristic.ContactSensorStateContactDetected {
+					log.Println("Homekit ContactSensor update: source=hardware contact=closed")
+					sensor.ContactSensorState.SetValue(characteristic.ContactSensorStateContactDetected)
 				}
 
-			} else {
+				if updateDoorState {
+					if acc.CurrentDoorState.GetValue() != characteristic.CurrentDoorStateClosed {
+						updateState(acc, characteristic.CurrentDoorStateClosed)
+
+						if LockOnClose {
+							lock.LockTargetState.UpdateValue(characteristic.LockTargetStateSecured)
+							lock.LockCurrentState.UpdateValue(characteristic.LockTargetStateSecured)
+							lockSwitch.On.UpdateValue(true)
+						}
+					}
+				}
+			} else if !isClosed && isOpen { // shutter open
+				if sensor.ContactSensorState.GetValue() != characteristic.ContactSensorStateContactNotDetected {
+					log.Println("Homekit ContactSensor update: source=hardware contact=open")
+					sensor.ContactSensorState.SetValue(characteristic.ContactSensorStateContactNotDetected)
+				}
+
+				if updateDoorState {
+					if acc.CurrentDoorState.GetValue() != characteristic.CurrentDoorStateOpen {
+						updateState(acc, characteristic.CurrentDoorStateOpen)
+					}
+				}
+			} else if !isClosed && !isOpen { // shutter moving
+				if sensor.ContactSensorState.GetValue() != characteristic.ContactSensorStateContactNotDetected {
+					log.Println("Homekit ContactSensor update: source=harware contact=open")
+					sensor.ContactSensorState.SetValue(characteristic.ContactSensorStateContactNotDetected)
+				}
+
+				if updateDoorState {
+					currentDoorState := acc.CurrentDoorState.GetValue()
+					targetDoorState := acc.TargetDoorState.GetValue()
+
+					if currentDoorState != characteristic.CurrentDoorStateOpening && currentDoorState != characteristic.CurrentDoorStateClosing {
+						if targetDoorState == characteristic.TargetDoorStateClosed {
+							log.Println("Homekit GarageDoorOpener update: source=hardware target=open current=opening")
+							acc.TargetDoorState.UpdateValue(characteristic.TargetDoorStateOpen)
+							acc.CurrentDoorState.UpdateValue(characteristic.CurrentDoorStateOpening)
+						} else {
+							log.Println("Homekit GarageDoorOpener update: source=hardware target=closed current=closing")
+							acc.TargetDoorState.UpdateValue(characteristic.TargetDoorStateClosed)
+							acc.CurrentDoorState.UpdateValue(characteristic.CurrentDoorStateClosing)
+						}
+					}
+				}
+			} else { // shutter in invalid state
 				log.Println("ERROR: Unexpected door state reported as both opened and closed")
 
+				if sensor.ContactSensorState.GetValue() != characteristic.ContactSensorStateContactDetected {
+					log.Println("Homekit ContactSensor update: source=hardware contact=closed")
+					sensor.ContactSensorState.SetValue(characteristic.ContactSensorStateContactDetected)
+				}
 			}
 		}
 
@@ -160,7 +257,7 @@ func pollDoorState(acc *GarageDoorOpener, hat *AutomationHatDev) {
 	}
 }
 
-func updateState(acc *GarageDoorOpener, hat *AutomationHatDev, newState int) {
+func updateState(acc *GarageDoorOpener, newState int) {
 	oldState := acc.CurrentDoorState.GetValue()
 
 	if oldState == newState {
@@ -168,6 +265,7 @@ func updateState(acc *GarageDoorOpener, hat *AutomationHatDev, newState int) {
 	}
 
 	log.Printf("Door state: old=%d new=%d\n", oldState, newState)
+
 	switch newState {
 	case characteristic.CurrentDoorStateClosing:
 		log.Println("Door state: current=closing")
@@ -192,4 +290,18 @@ func updateState(acc *GarageDoorOpener, hat *AutomationHatDev, newState int) {
 	}
 
 	acc.CurrentDoorState.UpdateValue(newState)
+}
+
+func isUnlocked(acc *GarageDoorLock) bool {
+	lockState := acc.LockCurrentState.GetValue()
+
+	if lockState == characteristic.LockCurrentStateUnsecured {
+		log.Println("Is locked: current=unlocked")
+
+		return true
+	}
+
+	log.Println("Is locked: current=locked")
+
+	return false
 }

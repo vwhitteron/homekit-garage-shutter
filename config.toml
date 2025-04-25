@@ -1,0 +1,18 @@
+BaseDirectory = "/opt/homekit-garage-shutter"
+
+EnableHomekitLockSwitch     = true
+EnableHomekitLockMechanism  = true
+EnableHomekitContactSensors = true
+LockOnClose                 = true
+
+Name         = "Garage Shutter"
+Manufacturer = ""
+Model        = ""
+SerialNumber = ""
+
+HomekitPinCode = "00001234"
+
+OpenButtonRelay   = 1
+CloseButtonRelay  = 3
+OpenContactInput  = 1
+CloseContactInput = 2

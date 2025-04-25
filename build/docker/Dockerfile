@@ -36,7 +36,7 @@ RUN --mount=type=bind,target=. find /src -type f
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=bind,target=. \
     GOOS=${GOOS} GOARCH=arm \
-    go build -ldflags "-X main.build=${BUILDTIME}" -o /out/homekit-garage-shutter-${GOOS}-armhf ./main.go
+    go build -ldflags "-X 'main.Version=${BUILDVERSION}' -X main.build=${BUILDTIME}" -o /out/homekit-garage-shutter-${GOOS}-armhf
 
 FROM base-armel as build-app-armel
 WORKDIR /src
@@ -51,7 +51,7 @@ RUN --mount=type=bind,target=. find /src -type f
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=bind,target=. \
     GOOS=${GOOS} GOARCH=arm GOARM=${GOARM} \
-    go build -ldflags "-X main.build=${BUILDTIME}" -o /out/homekit-garage-shutter-${GOOS}-armel-${GOARM}
+    go build -ldflags "-X 'main.Version=${BUILDVERSION}' -X main.build=${BUILDTIME}" -o /out/homekit-garage-shutter-${GOOS}-armel-${GOARM}
 
 FROM base-armel as build-app-armel-8
 WORKDIR /src
@@ -65,7 +65,7 @@ RUN --mount=type=bind,target=. find /src -type f
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=bind,target=. \
     GOOS=${GOOS} GOARCH=arm \
-    go build -ldflags "-X main.build=${BUILDTIME}" -o /out/homekit-garage-shutter-${GOOS}-armel-8 ./main.go
+    go build -ldflags "-X 'main.Version=${BUILDVERSION}' -X main.build=${BUILDTIME}" -o /out/homekit-garage-shutter-${GOOS}-armel-8
 
 FROM base-arm64 as build-app-arm64-8
 WORKDIR /src
@@ -77,7 +77,7 @@ RUN --mount=type=bind,target=. find /src -type f
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=bind,target=. \
     GOOS=${GOOS} GOARCH=arm64 \
-    go build -ldflags "-X main.build=${BUILDTIME}" -o /out/homekit-garage-shutter-${GOOS}-arm64-8 ./main.go
+    go build -ldflags "-X 'main.Version=${BUILDVERSION}' -X main.build=${BUILDTIME}" -o /out/homekit-garage-shutter-${GOOS}-arm64-8
 
 
 

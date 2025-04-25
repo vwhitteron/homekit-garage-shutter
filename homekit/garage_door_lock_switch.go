@@ -1,6 +1,8 @@
-package main
+package homekit
 
 import (
+	"log"
+
 	"github.com/brutella/hc/accessory"
 	"github.com/brutella/hc/service"
 )
@@ -21,4 +23,16 @@ func NewGarageDoorLockSwitch(info accessory.Info) *GarageDoorLockSwitch {
 	acc.Accessory.AddService(acc.Switch.Service)
 
 	return &acc
+}
+
+func (l *GarageDoorLockSwitch) TurnOn() {
+	log.Println("Homekit Switch update: value=on")
+
+	l.On.UpdateValue(true)
+}
+
+func (l *GarageDoorLockSwitch) SetStateOff() {
+	log.Println("Homekit Switch update: value=off")
+
+	l.On.UpdateValue(false)
 }

@@ -42,7 +42,25 @@ build/rpi/v6:
 	--output=out --target=binaries-armel --progress=plain \
 	-f build/docker/Dockerfile .
 
-## build/rpi/v8/64: build the application for Raspberry Pi ARMv8 64bit (3*, 4*, Zero 2W)
+## build/rpi/v7: build the application for Raspberry Pi ARMv7 (2B)
+.PHONY: build/rpi/v7
+build/rpi/v7:
+	@docker build \
+	--build-arg GOOS=linux --build-arg GOARM=7 \
+	--build-arg BUILDTIME=$(buildtime) --build-arg BUILDVERSION=$(buildversion) \
+	--output=out --target=binaries-armel --progress=plain \
+	-f build/docker/Dockerfile .
+
+## build/rpi/v8/32: build the application for Raspberry Pi ARMv8 32bit (2B[+1.2], 3*, 4*, 5*, Zero 2W)
+.PHONY: build/rpi/v8/32
+build/rpi/v8/32:
+	@docker build \
+	--build-arg GOOS=linux \
+	--build-arg BUILDTIME=$(buildtime) --build-arg BUILDVERSION=$(buildversion) \
+	--output=out --target=binaries-armel-8 --progress=plain \
+	-f build/docker/Dockerfile .
+
+## build/rpi/v8/64: build the application for Raspberry Pi ARMv8 64bit (3*, 4*, 5*, Zero 2W)
 .PHONY: build/rpi/v8/64
 build/rpi/v8/64:
 	@docker build \

@@ -16,6 +16,14 @@ help:
 buildversion := $(shell git describe --tags --always --dirty)
 buildtime := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
+.PHONY: lint
+lint:
+	@golangci-lint run
+
+.PHONY: format
+format:
+	@golangci-lint run --fix
+
 ## build/rpi: build the application for Raspberry Pi using ARMHF (any version)
 .PHONY: build/rpi
 build/rpi:

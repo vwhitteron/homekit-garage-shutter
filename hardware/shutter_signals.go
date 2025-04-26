@@ -58,10 +58,12 @@ func (s *Shutter) signalLockShutter() {
 
 	s.hcLockSwitch.TurnOn()
 
-	// log.Println("Shutter remote: signal=close")
-	// s.closeButton.Out(true)
-	// time.Sleep(500 * time.Millisecond)
-	// s.closeButton.Out(false)
+	if s.options.CloseWhenLocked {
+		log.Println("Shutter remote: source=lock signal=close")
+		s.closeButton.Out(true)
+		time.Sleep(500 * time.Millisecond)
+		s.closeButton.Out(false)
+	}
 }
 
 func (s *Shutter) signalUnlockShutter() {

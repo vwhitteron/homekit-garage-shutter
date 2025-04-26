@@ -29,13 +29,13 @@ func main() {
 	}()
 
 	shutterOptions := &hardware.ShutterOptions{
-		BaseDirectory:               "/opt/homekit-garage-shutter",
-		EnableHomekitLockSwitch:     true,
-		EnableHomekitLockMechanism:  true,
-		EnableHomekitContactSensors: true,
-		LockWhenClosed:              true,
-		CloseWhenLocked:             true,
-		SwitchHoldMs:                500,
+		BaseDirectory:              "/opt/homekit-garage-shutter",
+		EnableHomekitLockSwitch:    true,
+		EnableHomekitLockMechanism: true,
+		EnableHomekitContactSensor: true,
+		LockWhenClosed:             true,
+		CloseWhenLocked:            true,
+		SwitchHoldMs:               500,
 
 		Name:         "Garage Shutter",
 		Manufacturer: "generic",

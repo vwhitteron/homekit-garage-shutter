@@ -50,12 +50,12 @@ type Shutter struct {
 type ShutterOptions struct {
 	BaseDirectory string
 
-	SwitchHoldMs                uint
-	EnableHomekitLockSwitch     bool
-	EnableHomekitLockMechanism  bool
-	EnableHomekitContactSensors bool
-	LockWhenClosed              bool
-	CloseWhenLocked             bool
+	SwitchHoldMs               uint
+	EnableHomekitLockSwitch    bool
+	EnableHomekitLockMechanism bool
+	EnableHomekitContactSensor bool
+	LockWhenClosed             bool
+	CloseWhenLocked            bool
 
 	Name           string
 	Manufacturer   string
@@ -110,7 +110,7 @@ func NewShutter(opts ShutterOptions) *Shutter {
 	accessories = append(accessories, hcOpener.Accessory)
 
 	var hcOpenSensor *homekit.GarageDoorOpenSensor
-	if opts.EnableHomekitContactSensors {
+	if opts.EnableHomekitContactSensor {
 		hcOpenSensor = homekit.NewGarageDoorOpenSensor(info)
 
 		accessories = append(accessories, hcOpenSensor.Accessory)

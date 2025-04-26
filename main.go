@@ -35,6 +35,7 @@ func main() {
 		EnableHomekitContactSensors: true,
 		LockWhenClosed:              true,
 		CloseWhenLocked:             true,
+		SwitchHoldMs:                500,
 
 		Name:         "Garage Shutter",
 		Manufacturer: "generic",

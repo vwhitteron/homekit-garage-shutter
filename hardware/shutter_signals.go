@@ -3,6 +3,8 @@ package hardware
 import (
 	"log"
 	"time"
+
+	"periph.io/x/conn/v3/gpio"
 )
 
 func (s *Shutter) signalCloseShutter() {
@@ -17,9 +19,7 @@ func (s *Shutter) signalCloseShutter() {
 	s.rejectSignalUntil = time.Now().Add(5 * time.Second)
 
 	log.Println("Shutter remote: signal=close")
-	s.closeButton.Out(true)
-	time.Sleep(500 * time.Millisecond)
-	s.closeButton.Out(false)
+	s.pressButton(s.closeButton)
 
 	s.shutterState = shutterStateClosing
 
@@ -42,9 +42,7 @@ func (s *Shutter) signalOpenShutter() {
 	s.rejectSignalUntil = time.Now().Add(5 * time.Second)
 
 	log.Println("Shutter remote: signal=open")
-	s.openButton.Out(true)
-	time.Sleep(500 * time.Millisecond)
-	s.openButton.Out(false)
+	s.pressButton(s.openButton)
 
 	s.shutterState = shutterStateOpening
 
@@ -60,9 +58,7 @@ func (s *Shutter) signalLockShutter() {
 
 	if s.options.CloseWhenLocked {
 		log.Println("Shutter remote: source=lock signal=close")
-		s.closeButton.Out(true)
-		time.Sleep(500 * time.Millisecond)
-		s.closeButton.Out(false)
+		s.pressButton(s.closeButton)
 	}
 }
 
@@ -72,4 +68,24 @@ func (s *Shutter) signalUnlockShutter() {
 	s.hcLock.SetStateUnsecured()
 
 	s.hcLockSwitch.On.UpdateValue(false)
+}
+
+func (s *Shutter) pressButton(button gpio.PinOut) {
+	duration := time.Duration(s.options.SwitchHoldMs) * time.Millisecond
+
+	err := button.Out(true)
+	if err != nil {
+		log.Printf("Error engaging relay %q: %v", button.Name(), err)
+
+		return
+	}
+
+	time.Sleep(duration)
+
+	err = button.Out(false)
+	if err != nil {
+		log.Printf("Error releasing relay %q: %v", button.Name(), err)
+
+		return
+	}
 }

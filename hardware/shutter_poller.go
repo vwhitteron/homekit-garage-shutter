@@ -37,7 +37,7 @@ func (s *Shutter) setShutterClosed() {
 
 	s.updateState(characteristic.CurrentDoorStateClosed)
 
-	if s.options.LockOnClose {
+	if s.options.LockWhenClosed {
 		s.hcLock.Secure()
 		s.hcLockSwitch.TurnOn()
 	}

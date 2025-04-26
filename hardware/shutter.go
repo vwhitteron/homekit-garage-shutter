@@ -53,7 +53,7 @@ type ShutterOptions struct {
 	EnableHomekitLockSwitch     bool
 	EnableHomekitLockMechanism  bool
 	EnableHomekitContactSensors bool
-	LockOnClose                 bool
+	LockWhenClosed              bool
 
 	Name           string
 	Manufacturer   string

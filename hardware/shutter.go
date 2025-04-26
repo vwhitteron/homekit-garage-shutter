@@ -78,7 +78,6 @@ func NewShutter(opts ShutterOptions) *Shutter {
 	if err != nil {
 		log.Fatalf("failed to initialize AutomationHAT: %v", err)
 	}
-	defer hat.Halt()
 
 	openButton, err := hat.GetRelay(opts.OpenButtonRelay)
 	if err != nil {
@@ -225,4 +224,9 @@ func (s *Shutter) Run() {
 
 	log.Println("Starting Homekit server: pin=" + config.Pin)
 	transport.Start()
+
+	err = s.hat.Halt()
+	if err != nil {
+		log.Fatalf("Failed to halt AutomationHAT: %v", err)
+	}
 }

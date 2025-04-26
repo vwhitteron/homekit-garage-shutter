@@ -77,11 +77,6 @@ func (s *Shutter) pollPhysicalState() {
 	for {
 		time.Sleep(time.Second)
 
-		if s.hcOpener.IsUpdateBlocked() {
-			log.Println("Poll door state: delayed")
-			continue
-		}
-
 		switch s.getShutterPosition() {
 		case shutterStateOpen:
 			s.setShutterOpen()
@@ -123,6 +118,10 @@ func (s *Shutter) getShutterPosition() shutterState {
 	return position
 }
 func (s *Shutter) updateState(newState int) {
+	if s.hcOpener.IsUpdateBlocked() {
+		return
+	}
+
 	currentState := s.hcOpener.CurrentDoorState.GetValue()
 
 	if currentState == newState {
